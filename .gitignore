@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+models/
+*.pt
+*.pth
+*.bin
+*.gguf
+*.safetensors
+wandb/
+
+# Chặn data (thường data train không up lên git)
+data/
+!data/.gitkeep
+
+# --- IDE Config ---
+.vscode/
+.idea/
+*.swp
