@@ -214,10 +214,6 @@ models/
 *.safetensors
 wandb/
 
-# Chặn data (thường data train không up lên git)
-data/
-!data/.gitkeep
-
 # --- IDE Config ---
 .vscode/
 .idea/
