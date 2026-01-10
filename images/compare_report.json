@@ -1,0 +1,21 @@
+{
+    "base_metrics": {
+        "accuracy": 0.46,
+        "counts": {
+            "correct": 92,
+            "wrong": 10,
+            "no_code": 92,
+            "exec_fail": 6
+        }
+    },
+    "adapter_metrics": {
+        "accuracy": 0.805,
+        "counts": {
+            "correct": 161,
+            "wrong": 36,
+            "no_code": 0,
+            "exec_fail": 3
+        }
+    },
+    "improvement": 0.34500000000000003
+}
