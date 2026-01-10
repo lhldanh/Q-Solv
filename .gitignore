@@ -218,3 +218,6 @@ wandb/
 .vscode/
 .idea/
 *.swp
+
+# Unslot
+unsloth_compiled_cache/

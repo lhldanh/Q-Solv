@@ -1,0 +1,52 @@
+# =========================
+# Q-Solv Training Config
+# =========================
+
+project:
+  name: "qsolv"
+  seed: 3407
+  output_dir: "models/qwen25_coder_7b_lora"
+
+data:
+  path: "data/gsm8k_python.jsonl"
+  dataset_field: "messages"
+  num_proc: 2
+  max_seq_length: 2048
+
+model:
+  name: "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit"
+  load_in_4bit: true
+  dtype: null            
+
+lora:
+  r: 16
+  alpha: 16
+  dropout: 0.0
+  bias: "none"
+  gradient_checkpointing: "unsloth"
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+trainer:
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 4
+  num_train_epochs: 2
+  learning_rate: 1.0e-4
+  warmup_ratio: 0.05
+  weight_decay: 0.01
+  lr_scheduler_type: "cosine"
+  optim: "adamw_8bit"
+  logging_steps: 10
+  save_steps: 100
+  save_total_limit: 2
+
+masking:
+  response_template_candidates:
+    - "\nassistant\n"
+    - "<|im_start|>assistant\n"
