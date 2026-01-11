@@ -8,10 +8,15 @@ from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
+from utils import (
+    extract_code,
+    safe_execute_code,
+    get_gsm8k_final_answer,
+    parse_and_compare
+)
 from eval import (
     DEFAULT_BASE, DEFAULT_ADAPTER, DEFAULT_SYSTEM,
-    build_prompt, generate, extract_code, safe_exec_inline,
-    parse_exec_output, is_correct, get_gsm8k_final, ensure_dir
+    build_prompt, generate, ensure_dir
 )
 
 
@@ -23,7 +28,7 @@ def run_eval_on_model(model, tokenizer, dataset, args, name="Model"):
     for i in range(args.start, args.start + args.n):
         item = dataset[i]
         q = item["question"]
-        gt = get_gsm8k_final(item["answer"])
+        gt = get_gsm8k_final_answer(item["answer"])
 
         prompt = build_prompt(tokenizer, DEFAULT_SYSTEM, q)
         raw = generate(model, tokenizer, prompt,
@@ -35,12 +40,12 @@ def run_eval_on_model(model, tokenizer, dataset, args, name="Model"):
         if not code:
             status = "no_code"
         else:
-            ok, out = safe_exec_inline(code)
-            if not ok:
+            exec_res = safe_execute_code(code)
+
+            if exec_res["error"]:
                 status = "exec_fail"
             else:
-                pred_val = parse_exec_output(out)
-                if is_correct(pred_val, gt):
+                if parse_and_compare(exec_res["logs"], gt):
                     status = "correct"
 
         counts[status] += 1
@@ -102,7 +107,7 @@ def plot_comparison(out_dir, base_data, adapter_data):
     plt.legend()
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
-    # Thêm số liệu cụ thể trên đầu mỗi cột
+    # Thêm số liệu cụ thể
     for i in x:
         plt.text(i - width/2, base_vals[i] +
                  0.5, str(base_vals[i]), ha='center')
@@ -147,7 +152,6 @@ def main():
     adapter_res = run_eval_on_model(
         model, tokenizer, ds, args, name="Finetuned (Adapter)")
 
-    # Vẽ biểu đồ Pie đối chiếu
     plot_comparison(args.images_dir, base_res, adapter_res)
 
     if args.save_json:
