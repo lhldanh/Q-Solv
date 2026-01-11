@@ -50,9 +50,9 @@ if page == "IDE Playground":
     """)
     with col_links:
         st.markdown("""
-            [![GitHub](https://img.shields.io/badge/GitHub-Source_Code-181717?logo=github)](https://github.com/your-username/q-solv)
-            [![Model](https://img.shields.io/badge/Model-Qwen--2.5--Coder--32B-blue?logo=huggingface)](https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct)
-        """)
+        [![GitHub](https://img.shields.io/badge/GitHub-Source_Code-181717?logo=github)](https://github.com/lhldanh/Q-Solv)
+        [![Model](https://img.shields.io/badge/Model-QSolv--Qwen2.5--7B--LoRA-FFD21E?logo=huggingface&logoColor=black)](https://huggingface.co/dainlieu/qsolv-qwen2.5-coder-7b-lora-gsm8k)
+    """)
 
     st.divider()
     col_input, col_editor = st.columns(2)
