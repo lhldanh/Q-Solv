@@ -1,58 +1,15 @@
-import re
-import math
 import argparse
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional
 
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import PeftModel
 
-# DEFAULT_BASE = "Qwen/Qwen2.5-Coder-7B-Instruct"  # nếu windows bị lỗi load bnb 4bit thì dùng bản này
+from utils import extract_code, safe_execute_code
+
 DEFAULT_BASE = "unsloth/Qwen2.5-Coder-7B-Instruct-bnb-4bit"
 DEFAULT_ADAPTER = "dainlieu/qsolv-qwen2.5-coder-7b-lora-gsm8k"
 DEFAULT_SYSTEM = "You are a helpful assistant. Solve the math problem by writing Python code only."
-
-
-def extract_code(md: str) -> Optional[str]:
-    m = re.search(r"```python\s*(.*?)\s*```", md, re.S)
-    if not m:
-        return None
-    return m.group(1).strip()
-
-
-def safe_exec(code: str) -> Tuple[bool, str]:
-    banned = ["import ", "__import__",
-              "open(", "exec(", "eval(", "os.", "subprocess", "sys.", "shutil", "pathlib"]
-    low = code.lower()
-    if any(b in low for b in banned):
-        return False, "Blocked: unsafe code patterns"
-
-    import io
-    import contextlib
-
-    safe_builtins = {
-        "abs": abs,
-        "min": min,
-        "max": max,
-        "sum": sum,
-        "len": len,
-        "range": range,
-        "int": int,
-        "float": float,
-        "str": str,
-        "print": print,
-        "round": round,
-    }
-    glb: Dict[str, Any] = {"__builtins__": safe_builtins, "math": math}
-    loc: Dict[str, Any] = {}
-
-    buf = io.StringIO()
-    try:
-        with contextlib.redirect_stdout(buf):
-            exec(code, glb, loc)
-        return True, buf.getvalue().strip()
-    except Exception as e:
-        return False, f"{type(e).__name__}: {e}"
 
 
 def build_prompt(tokenizer, system: str, question: str) -> str:
@@ -82,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--adapter", type=str, default=DEFAULT_ADAPTER)
     parser.add_argument("--base", type=str, default=DEFAULT_BASE)
-    parser.add_argument("--max_new_tokens", type=int, default=256)
+    parser.add_argument("--max_new_tokens", type=int, default=512)
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--question", type=str, default="")
     args = parser.parse_args()
@@ -98,11 +55,7 @@ def main():
     if device == "cpu":
         dtype = torch.float32
 
-    print("Base:", args.base)
-    print("Adapter:", args.adapter)
-    print("Device:", device)
-    print()
-
+    print(f"--- Loading Model ---")
     tokenizer = AutoTokenizer.from_pretrained(args.base, use_fast=True)
     base_model = AutoModelForCausalLM.from_pretrained(
         args.base,
@@ -114,26 +67,27 @@ def main():
     model.eval()
 
     prompt = build_prompt(tokenizer, DEFAULT_SYSTEM, question)
-    text = generate(model, tokenizer, prompt,
-                    args.max_new_tokens, args.temperature)
+    raw_output = generate(model, tokenizer, prompt,
+                          args.max_new_tokens, args.temperature)
 
-    print("===== RAW OUTPUT =====")
-    print(text)
-    print()
+    code = extract_code(raw_output)
 
-    code = extract_code(text)
     if not code:
-        print("No ```python``` code block found.")
+        print("===== RAW OUTPUT =====")
+        print(raw_output)
+        print("\n[LỖI] Không tìm thấy block code Python.")
         return
 
     print("===== EXTRACTED CODE =====")
     print(code)
-    print()
 
-    ok, out = safe_exec(code)
-    print("===== EXEC RESULT =====")
-    print("ok =", ok)
-    print(out)
+    result = safe_execute_code(code)
+
+    print("\n===== EXECUTION RESULT =====")
+    if result["error"]:
+        print(f"❌ Error:\n{result['error']}")
+    else:
+        print(f"✅ Output:\n{result['logs']}")
 
 
 if __name__ == "__main__":
