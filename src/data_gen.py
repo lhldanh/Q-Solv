@@ -6,6 +6,12 @@ import time
 from datasets import load_dataset
 from dotenv import load_dotenv
 from openai import OpenAI
+from utils import (
+    extract_code,
+    safe_execute_code,
+    get_gsm8k_final_answer,
+    parse_and_compare
+)
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -32,50 +38,12 @@ MANDATORY REQUIREMENTS:
 
 Problem: {question}
 """
-    resp = client.responses.create(
+    resp = client.chat.completions.create(
         model="gpt-4o-mini",
         input=prompt,
         temperature=0,
     )
-    return resp.output_text
-
-
-def extract_code(md: str) -> str:
-    m = re.search(r"```python\s*(.*?)\s*```", md, re.S)
-    if not m:
-        raise ValueError("No python code block found")
-    return m.group(1).strip()
-
-
-def run_code_get_stdout(code: str) -> str:
-    # chạy code và bắt stdout
-    banned = ["import os", "import subprocess", "import sys",
-              "open(", "eval(", "exec(", "__import__", "socket"]
-    if any(x in code for x in banned):
-        raise ValueError("Banned operation in code")
-
-    import io
-    import contextlib
-    buf = io.StringIO()
-    glb = {}
-    with contextlib.redirect_stdout(buf):
-        exec(code, glb, glb)
-    return buf.getvalue().strip()
-
-
-def get_gsm8k_final(answer_text: str) -> str:
-    return answer_text.split("####")[-1].strip()
-
-
-def compare_gsm8k(exec_out: str, gt: str) -> bool:
-    # GSM8K final là integer
-    try:
-        val = float(exec_out)
-        if math.isnan(val) or math.isinf(val):
-            return False
-        return int(round(val)) == int(gt)
-    except:
-        return False
+    return resp.choices[0].message.content
 
 
 out_path = "gsm8k_python.jsonl"
@@ -87,16 +55,16 @@ with open(out_path, "w", encoding="utf-8") as f:
     for i, item in enumerate(dataset):
         total += 1
         q = item["question"]
-        gt = get_gsm8k_final(item["answer"])
+        gt = get_gsm8k_final_answer(item["answer"])
 
         for attempt in range(3):
             try:
                 md = generate_python_solution(q)
                 code = extract_code(md)
-                stdout = run_code_get_stdout(code)
 
-                ok = compare_gsm8k(stdout, gt)
+                exec_res = safe_execute_code(code)
 
+                ok = parse_and_compare(exec_res["logs"], gt)
                 if ok:
                     entry = {
                         "messages": [
@@ -105,7 +73,7 @@ with open(out_path, "w", encoding="utf-8") as f:
                             {"role": "assistant", "content": f"```python\n{code}\n```"},
                         ],
                         "original_answer": item["answer"],
-                        "exec_output": stdout,
+                        "exec_output": exec_res["logs"],
                         "gt_final": gt,
                         "is_correct": True,
                     }
