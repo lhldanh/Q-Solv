@@ -141,7 +141,7 @@ elif page == "Pipeline & Architecture":
     st.title("🔗 System Pipeline & Architecture")
     current_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.abspath(os.path.join(current_dir, "../../"))
-    SVG_PATH = os.path.join(root_dir, "images", "Pipeline _Architecture.svg")
+    SVG_PATH = os.path.join(root_dir, "images", "Pipeline_Architecture.svg")
 
     if os.path.exists(SVG_PATH):
         st.image(SVG_PATH, use_container_width=True)
